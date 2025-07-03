@@ -115,12 +115,14 @@ const InternVerification: React.FC = () => {
         {/* Personal Information */}
         <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-xl p-8 mb-8">
           <div className="flex items-start space-x-6">
-            <img
+<img
   src={intern.photo}
   alt={`${intern.firstName} ${intern.lastName}`}
   referrerPolicy="no-referrer"
   className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
 />
+
+
 
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
