@@ -22,14 +22,12 @@ const InternVerification: React.FC = () => {
         const foundIntern = await googleSheetsService.getInternByUniqueId(uniqueId);
         
         if (foundIntern) {
-          // Convert Google Drive file ID to viewable URL
           const internWithPhoto = {
             ...foundIntern,
             photo: foundIntern.photo ? googleDriveService.getPhotoUrl(foundIntern.photo) : 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300'
           };
           setIntern(internWithPhoto);
           console.log('Image URL:', internWithPhoto.photo);
-
         }
       } catch (error) {
         console.error('Error fetching intern:', error);
@@ -75,6 +73,11 @@ const InternVerification: React.FC = () => {
     );
   }
 
+  // Check completion status of internship fields
+  const completedFields = intern.internshipFields.filter(field => !isNaN(new Date(field.endDate).getTime()));
+  const incompleteFields = intern.internshipFields.filter(field => isNaN(new Date(field.endDate).getTime()));
+  const allFieldsCompleted = incompleteFields.length === 0;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -89,8 +92,17 @@ const InternVerification: React.FC = () => {
               Back to Search
             </Link>
             <div className="flex items-center space-x-2">
-              <CheckCircle className="h-6 w-6 text-green-500" />
-              <span className="text-green-600 dark:text-green-400 font-medium">Certificate Verified</span>
+              {allFieldsCompleted ? (
+                <>
+                  <CheckCircle className="h-6 w-6 text-green-500" />
+                  <span className="text-green-600 dark:text-green-400 font-medium">Certificate Verified</span>
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-6 w-6 text-red-500" />
+                  <span className="text-red-600 dark:text-red-400 font-medium">Incomplete Certificate</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -99,31 +111,51 @@ const InternVerification: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Verification Status */}
         <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 mb-8">
-          <div className="flex items-center">
-            <CheckCircle className="h-8 w-8 text-green-500 mr-3" />
-            <div>
-              <h2 className="text-xl font-bold text-green-800 dark:text-green-300">
-                Certificate Verified Successfully
-              </h2>
-              <p className="text-green-700 dark:text-green-400">
-                This certificate is authentic and issued by Green Thicks Internship Program
-              </p>
-            </div>
-          </div>
+  <div className="flex items-center">
+    {allFieldsCompleted ? (
+      <>
+        <CheckCircle className="h-8 w-8 text-green-500 mr-3" />
+        <div>
+          <h2 className="text-xl font-bold text-green-800 dark:text-green-300">
+            Certificate Verified Successfully
+          </h2>
+          <p className="text-green-700 dark:text-green-400">
+            This certificate is authentic and issued by Green Thicks Internship Program
+          </p>
         </div>
+      </>
+    ) : (
+      <>
+        <XCircle className="h-8 w-8 text-red-500 mr-3" />
+        <div>
+          <h2 className="text-xl font-bold text-red-800 dark:text-red-300">
+            Internship Status
+          </h2>
+          {completedFields.length > 0 && (
+            <p className="text-green-700 dark:text-green-400">
+              Completed Fields: {completedFields.map(field => field.fieldName).join(', ')}
+            </p>
+          )}
+          {incompleteFields.length > 0 && (
+            <p className="text-red-700 dark:text-red-400">
+              Incomplete Fields: {incompleteFields.map(field => field.fieldName).join(', ')}
+            </p>
+          )}
+        </div>
+      </>
+    )}
+  </div>
+</div>
 
         {/* Personal Information */}
         <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-xl p-8 mb-8">
           <div className="flex items-start space-x-6">
-<img
-  src={intern.photo}
-  alt={`${intern.firstName} ${intern.lastName}`}
-  referrerPolicy="no-referrer"
-  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
-/>
-
-
-
+            <img
+              src={intern.photo}
+              alt={`${intern.firstName} ${intern.lastName}`}
+              referrerPolicy="no-referrer"
+              className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+            />
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
                 {intern.firstName} {intern.lastName}
@@ -220,7 +252,9 @@ const InternVerification: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <Calendar className="h-4 w-4 text-red-500" />
                   <span className="text-sm text-gray-600 dark:text-gray-300">
-                    End: {new Date(field.endDate).toLocaleDateString()}
+                    End: {isNaN(new Date(field.endDate).getTime()) ? 
+                      `${field.fieldName} not completed` : 
+                      new Date(field.endDate).toLocaleDateString()}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
