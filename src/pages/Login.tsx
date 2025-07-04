@@ -36,7 +36,7 @@ const Login: React.FC = () => {
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <img 
-              src="/Green_white-removebg.png" 
+              src="/Greenthicks_Tech_Logo.png" 
               alt="Green Thicks Logo" 
               className="h-16 w-auto"
             />

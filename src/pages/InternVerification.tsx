@@ -333,7 +333,7 @@ const InternVerification: React.FC = () => {
         <div className="mt-12 bg-gray-100 dark:bg-gray-800 rounded-xl p-6 text-center">
           <div className="flex items-center justify-center mb-4">
             <img 
-              src="/Green_white-removebg.png" 
+              src="/Greenthicks_Tech_Logo.png" 
               alt="Green Thicks Logo" 
               className="h-12 w-auto mr-3"
             />

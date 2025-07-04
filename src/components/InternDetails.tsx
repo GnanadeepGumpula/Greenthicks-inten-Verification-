@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Calendar, MapPin, Clock, ExternalLink, Video, Github, User, Mail, Phone, Users, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, Calendar, Clock, ExternalLink, Video, Github, User, Mail, Phone, Users, CheckCircle, AlertCircle } from 'lucide-react';
 import { Intern } from '../types';
 
 interface InternDetailsProps {

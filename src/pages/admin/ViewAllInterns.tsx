@@ -1,35 +1,35 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { Search, Trash2, Edit, Eye, CheckCircle, AlertCircle, Users, Filter } from "lucide-react"
-import { googleSheetsService } from "../../services/googleSheets"
-import { googleDriveService } from "../../services/googleDrive"
-import type { Intern } from "../../types"
-import InternDetails from "../../components/InternDetails"
-import { Link } from "react-router-dom"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { Search, Trash2, Edit, Eye, CheckCircle, AlertCircle, Users, Filter } from "lucide-react";
+import { googleSheetsService } from "../../services/googleSheets";
+import { googleDriveService } from "../../services/googleDrive";
+import type { Intern } from "../../types";
+import InternDetails from "../../components/InternDetails";
+import { Link } from "react-router-dom";
 
 const ViewAllInterns: React.FC = () => {
-  const [interns, setInterns] = useState<Intern[]>([])
-  const [filteredInterns, setFilteredInterns] = useState<Intern[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [selectedIntern, setSelectedIntern] = useState<Intern | null>(null)
-  const [deleting, setDeleting] = useState<string | null>(null)
+  const [interns, setInterns] = useState<Intern[]>([]);
+  const [filteredInterns, setFilteredInterns] = useState<Intern[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedIntern, setSelectedIntern] = useState<Intern | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
-    loadInterns()
-  }, [])
+    loadInterns();
+  }, []);
 
   useEffect(() => {
-    filterInterns()
-  }, [interns, searchTerm, statusFilter])
+    filterInterns();
+  }, [interns, searchTerm, statusFilter]);
 
   const loadInterns = async () => {
     try {
-      setLoading(true)
-      const internsData = await googleSheetsService.getInterns()
+      setLoading(true);
+      const internsData = await googleSheetsService.getInterns();
 
       // Convert Google Drive file IDs to viewable URLs
       const internsWithPhotos = internsData.map((intern) => ({
@@ -37,29 +37,29 @@ const ViewAllInterns: React.FC = () => {
         photo: intern.photo
           ? googleDriveService.getPhotoUrl(intern.photo)
           : "https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300",
-      }))
+      }));
 
-      setInterns(internsWithPhotos)
+      setInterns(internsWithPhotos);
     } catch (error) {
-      console.error("Error loading interns:", error)
+      console.error("Error loading interns:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const filterInterns = () => {
-    let filtered = interns
+    let filtered = interns;
 
     // Search filter
     if (searchTerm) {
-      const query = searchTerm.toLowerCase()
+      const query = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (intern) =>
           `${intern.firstName} ${intern.lastName}`.toLowerCase().includes(query) ||
           intern.uniqueId.toLowerCase().includes(query) ||
           intern.email.toLowerCase().includes(query) ||
-          intern.phoneNumber.includes(query),
-      )
+          intern.phoneNumber.includes(query)
+      );
     }
 
     // Status filter
@@ -67,75 +67,46 @@ const ViewAllInterns: React.FC = () => {
       filtered = filtered.filter((intern) => {
         switch (statusFilter) {
           case "certified":
-            return intern.certificateIssued
+            return intern.certificateIssued;
           case "in-progress":
-            return !intern.certificateIssued
+            return !intern.certificateIssued;
           case "completed-fields":
-            return intern.internshipFields.some((field) => field.completed)
+            return intern.internshipFields.some((field) => field.completed);
           case "no-completed-fields":
-            return !intern.internshipFields.some((field) => field.completed)
+            return !intern.internshipFields.some((field) => field.completed);
           default:
-            return true
+            return true;
         }
-      })
+      });
     }
 
-    setFilteredInterns(filtered)
-  }
+    setFilteredInterns(filtered);
+  };
 
   const handleDeleteIntern = async (internId: string) => {
     if (!confirm("Are you sure you want to delete this intern? This action cannot be undone.")) {
-      return
+      return;
     }
 
     try {
-      setDeleting(internId)
-      const success = await googleSheetsService.deleteIntern(internId)
+      setDeleting(internId);
+      const success = await googleSheetsService.deleteIntern(internId);
 
       if (success) {
-        setInterns((prev) => prev.filter((intern) => intern.id !== internId))
-        alert("Intern deleted successfully")
+        setInterns((prev) => prev.filter((intern) => intern.id !== internId));
+        alert("Intern deleted successfully");
+        await loadInterns(); // Reload to ensure UI is up-to-date
       } else {
-        alert("Failed to delete intern. Please try again.")
+        alert("Failed to delete intern. Please try again.");
       }
     } catch (error) {
-      console.error("Error deleting intern:", error)
-      alert("Error deleting intern. Please try again.")
+      console.error("Error deleting intern:", error);
+      alert("Error deleting intern. Please try again.");
     } finally {
-      setDeleting(null)
+      setDeleting(null);
     }
-  }
+  };
 
-  const handleDeleteField = async (internId: string, fieldId: string) => {
-    if (!confirm("Are you sure you want to delete this internship field?")) {
-      return
-    }
-
-    try {
-      const success = await googleSheetsService.deleteInternshipField(fieldId)
-
-      if (success) {
-        // Update local state
-        setInterns((prev) =>
-          prev.map((intern) => {
-            if (intern.id === internId) {
-              return {
-                ...intern,
-                internshipFields: intern.internshipFields.filter((field) => field.id !== fieldId),
-              }
-            }
-            return intern
-          }),
-        )
-        alert("Internship field deleted successfully")
-      } else {
-        alert("Failed to delete internship field. Please try again.")
-      }
-    } catch (error) {
-      console.error("Error deleting field:", error)
-      alert("Error deleting field. Please try again.")
-    }
-  }
 
   if (loading) {
     return (
@@ -145,7 +116,7 @@ const ViewAllInterns: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-300">Loading interns...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -228,8 +199,8 @@ const ViewAllInterns: React.FC = () => {
               </thead>
               <tbody>
                 {filteredInterns.map((intern) => {
-                  const completedFields = intern.internshipFields.filter((field) => field.completed).length
-                  const totalFields = intern.internshipFields.length
+                  const completedFields = intern.internshipFields.filter((field) => field.completed).length;
+                  const totalFields = intern.internshipFields.length;
 
                   return (
                     <tr
@@ -284,12 +255,12 @@ const ViewAllInterns: React.FC = () => {
                       <td className="py-4 px-4">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            completedFields === totalFields && totalFields > 0
+                            intern.certificateIssued
                               ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
                               : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
                           }`}
                         >
-                          {completedFields === totalFields && totalFields > 0 ? "Completed" : "In Progress"}
+                          {intern.certificateIssued ? "Certified" : "In Progress"}
                         </span>
                       </td>
 
@@ -326,7 +297,7 @@ const ViewAllInterns: React.FC = () => {
                         </div>
                       </td>
                     </tr>
-                  )
+                  );
                 })}
               </tbody>
             </table>
@@ -349,7 +320,7 @@ const ViewAllInterns: React.FC = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ViewAllInterns
+export default ViewAllInterns;

@@ -6,11 +6,12 @@ import InternDetails from '../components/InternDetails';
 import { googleSheetsService } from '../services/googleSheets';
 import { googleDriveService } from '../services/googleDrive';
 import { Intern } from '../types';
+import { calculateUniqueTrainingWeeks } from '../utils/calculateUniqueTrainingWeeks';
 
 const Home: React.FC = () => {
   const [interns, setInterns] = useState<Intern[]>([]);
   const [searchResults, setSearchResults] = useState<Intern[]>([]);
-  const [selectedIntern, setSelectedIntern] = useState<Intern | null>(null);
+  const [selectedIntern, setSelectedIntern] = useState<Intern | null>(null); // Fixed typo here
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -73,7 +74,7 @@ const Home: React.FC = () => {
   const stats = [
     { icon: Users, label: 'Total Interns', value: interns.length.toString(), color: 'text-blue-600' },
     { icon: Award, label: 'Certificates Issued', value: interns.filter(i => i.certificateIssued).length.toString(), color: 'text-green-600' },
-    { icon: Clock, label: 'Training Weeks', value: interns.reduce((acc, i) => acc + i.totalOnlineWeeks + i.totalOfflineWeeks, 0).toString(), color: 'text-purple-600' },
+    { icon: Clock, label: 'Training Weeks', value: calculateUniqueTrainingWeeks(interns).toString(), color: 'text-purple-600' },
     { icon: TrendingUp, label: 'Success Rate', value: interns.length > 0 ? Math.round((interns.filter(i => i.certificateIssued).length / interns.length) * 100) + '%' : '0%', color: 'text-orange-600' },
   ];
 

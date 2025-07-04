@@ -1,25 +1,26 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { Users, Award, Clock, TrendingUp, Plus, QrCode, FileText } from "lucide-react"
-import { Link } from "react-router-dom"
-import { googleSheetsService } from "../../services/googleSheets"
-import { googleDriveService } from "../../services/googleDrive"
-import type { Intern } from "../../types"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { Users, Award, Clock, TrendingUp, Plus, QrCode, FileText } from "lucide-react";
+import { Link } from "react-router-dom";
+import { googleSheetsService } from "../../services/googleSheets";
+import { googleDriveService } from "../../services/googleDrive";
+import type { Intern } from "../../types";
+import { calculateUniqueTrainingWeeks } from '../../utils/calculateUniqueTrainingWeeks';
 
 const AdminDashboard: React.FC = () => {
-  const [interns, setInterns] = useState<Intern[]>([])
-  const [loading, setLoading] = useState(true)
+  const [interns, setInterns] = useState<Intern[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadInterns()
-  }, [])
+    loadInterns();
+  }, []);
 
   const loadInterns = async () => {
     try {
-      setLoading(true)
-      const internsData = await googleSheetsService.getInterns()
+      setLoading(true);
+      const internsData = await googleSheetsService.getInterns();
 
       // Convert Google Drive file IDs to viewable URLs
       const internsWithPhotos = internsData.map((intern) => ({
@@ -27,20 +28,20 @@ const AdminDashboard: React.FC = () => {
         photo: intern.photo
           ? googleDriveService.getPhotoUrl(intern.photo)
           : "https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300",
-      }))
+      }));
 
-      setInterns(internsWithPhotos)
+      setInterns(internsWithPhotos);
     } catch (error) {
-      console.error("Error loading interns:", error)
+      console.error("Error loading interns:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const totalInterns = interns.length
-  const certificatesIssued = interns.filter((intern) => intern.certificateIssued).length
-  const totalWeeks = interns.reduce((acc, intern) => acc + intern.totalOnlineWeeks + intern.totalOfflineWeeks, 0)
-  const avgCompletionRate = totalInterns > 0 ? Math.round((certificatesIssued / totalInterns) * 100) : 0
+  const totalInterns = interns.length;
+  const certificatesIssued = interns.filter((intern) => intern.certificateIssued).length;
+  const totalWeeks = calculateUniqueTrainingWeeks(interns);
+  const avgCompletionRate = totalInterns > 0 ? Math.round((certificatesIssued / totalInterns) * 100) : 0;
 
   const stats = [
     {
@@ -71,7 +72,7 @@ const AdminDashboard: React.FC = () => {
       color: "text-orange-600",
       bg: "bg-orange-100 dark:bg-orange-900",
     },
-  ]
+  ];
 
   const quickActions = [
     { icon: Plus, label: "Add New Intern", href: "/admin/add-intern", color: "bg-green-600 hover:bg-green-700" },
@@ -83,9 +84,9 @@ const AdminDashboard: React.FC = () => {
       href: "/admin/certificates",
       color: "bg-orange-600 hover:bg-orange-700",
     },
-  ]
+  ];
 
-  const recentInterns = interns.slice(0, 5)
+  const recentInterns = interns.slice(0, 5);
 
   if (loading) {
     return (
@@ -95,7 +96,7 @@ const AdminDashboard: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-300">Loading dashboard...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -245,7 +246,7 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default AdminDashboard
+export default AdminDashboard;

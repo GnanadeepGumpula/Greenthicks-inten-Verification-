@@ -248,7 +248,7 @@ const Certificates: React.FC = () => {
                       {/* Header */}
                       <div className="text-center mb-8">
                         <div className="flex justify-center items-center mb-4">
-                          <img src="/Green_white-removebg.png" alt="Green Thicks Logo" className="h-16 w-auto" />
+                          <img src="/Greenthicks_Tech_Logo.png" alt="Green Thicks Logo" className="h-16 w-auto" />
                         </div>
                         <h1 className="text-4xl font-bold text-green-700 mb-2">Green Thicks</h1>
                         <p className="text-lg text-gray-600">Fresh From Farm To Table</p>

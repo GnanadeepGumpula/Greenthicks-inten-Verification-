@@ -51,7 +51,7 @@ const Header: React.FC<HeaderProps> = ({ isAdmin = false }) => {
           <div className="flex items-center">
             <Link to={isAdmin ? '/admin' : '/'} className="flex items-center space-x-3">
               <img 
-                src="/Green_white-removebg.png" 
+                src="/Greenthicks_Tech_Logo.png" 
                 alt="Green Thicks Logo" 
                 className="h-10 w-auto"
               />
@@ -97,15 +97,6 @@ const Header: React.FC<HeaderProps> = ({ isAdmin = false }) => {
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </button>
-            )}
-
-            {!isAdmin && (
-              <Link
-                to="/login"
-                className="hidden sm:inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
-              >
-                Admin Panel
-              </Link>
             )}
 
             {isAdmin && (

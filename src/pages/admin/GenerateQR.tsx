@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { QrCode, Download, Search, User } from "lucide-react"
 import QRCode from "qrcode"
 import { googleSheetsService } from "../../services/googleSheets"
@@ -14,7 +14,6 @@ const GenerateQR: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("")
   const [interns, setInterns] = useState<Intern[]>([])
   const [loading, setLoading] = useState(true)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     loadInterns()
@@ -113,7 +112,7 @@ const GenerateQR: React.FC = () => {
 
           setQrCodeUrl(canvas.toDataURL())
         }
-        logo.src = "/Green_white-removebg.png"
+        logo.src = "/Greenthicks_Tech_Logo.png"
       }
       qrImage.src = qrDataUrl
     } catch (error) {
