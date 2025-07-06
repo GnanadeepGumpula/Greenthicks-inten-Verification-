@@ -2,12 +2,13 @@
 
 import type React from "react";
 import { useState, useEffect } from "react";
-import { Users, Award, Clock, TrendingUp, Plus, QrCode, FileText } from "lucide-react";
+import { Users, Award, Clock, TrendingUp, Plus, QrCode, FileText, CheckCircle, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { googleSheetsService } from "../../services/googleSheets";
 import { googleDriveService } from "../../services/googleDrive";
 import type { Intern } from "../../types";
 import { calculateUniqueTrainingWeeks } from '../../utils/calculateUniqueTrainingWeeks';
+import type { InternshipField } from "../../types";
 
 const AdminDashboard: React.FC = () => {
   const [interns, setInterns] = useState<Intern[]>([]);
@@ -39,7 +40,9 @@ const AdminDashboard: React.FC = () => {
   };
 
   const totalInterns = interns.length;
-  const certificatesIssued = interns.filter((intern) => intern.certificateIssued).length;
+  const certificatesIssued = interns.reduce((total, intern) => {
+    return total + intern.internshipFields.filter((field: InternshipField) => field.certificateIssued).length;
+  }, 0);
   const totalWeeks = calculateUniqueTrainingWeeks(interns);
   const avgCompletionRate = totalInterns > 0 ? Math.round((certificatesIssued / totalInterns) * 100) : 0;
 
@@ -159,73 +162,108 @@ const AdminDashboard: React.FC = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700">
-                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Name</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">ID</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Email</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Intern</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Contact</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Fields</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Progress</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Status</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recentInterns.map((intern) => (
-                    <tr
-                      key={intern.id}
-                      className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      <td className="py-3 px-4">
-                        <div className="flex items-center space-x-3">
-                          <img
-                            src={intern.photo || "/placeholder.svg"}
-                            alt={`${intern.firstName} ${intern.lastName}`}
-                            className="w-8 h-8 rounded-full object-cover"
-                          />
-                          <span className="text-gray-900 dark:text-white">
-                            {intern.firstName} {intern.lastName}
+                  {recentInterns.map((intern) => {
+                    const completedFields = intern.internshipFields.filter((field) => field.completed).length;
+                    const totalFields = intern.internshipFields.length;
+                    const isCompleted = completedFields === totalFields && totalFields > 0;
+
+                    return (
+                      <tr
+                        key={intern.id}
+                        className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <td className="py-4 px-4">
+                          <div className="flex items-center space-x-3">
+                            <img
+                              src={intern.photo || "/placeholder.svg"}
+                              alt={`${intern.firstName} ${intern.lastName}`}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                            <div>
+                              <div className="font-medium text-gray-900 dark:text-white">
+                                {intern.firstName} {intern.lastName}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">ID: {intern.uniqueId}</div>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-4 px-4">
+                          <div className="text-sm">
+                            <div className="text-gray-900 dark:text-white">{intern.email}</div>
+                            <div className="text-gray-500 dark:text-gray-400">{intern.phoneNumber}</div>
+                          </div>
+                        </td>
+
+                        <td className="py-4 px-4">
+                          <div className="text-sm">
+                            <div className="text-gray-900 dark:text-white">{totalFields} total</div>
+                            <div className="text-gray-500 dark:text-gray-400">
+                              {intern.totalOnlineWeeks + intern.totalOfflineWeeks} weeks
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-4 px-4">
+                          <div className="flex items-center space-x-2">
+                            {completedFields === totalFields && totalFields > 0 ? (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <AlertCircle className="h-4 w-4 text-yellow-500" />
+                            )}
+                            <span className="text-sm text-gray-600 dark:text-gray-300">
+                              {completedFields}/{totalFields} completed
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="py-4 px-4">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              isCompleted
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                                : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                            }`}
+                          >
+                            {isCompleted ? "Certified" : "In Progress"}
                           </span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{intern.uniqueId}</td>
-                      <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{intern.email}</td>
-                      <td className="py-3 px-4 text-gray-600 dark:text-gray-300">
-                        {intern.internshipFields.length} field{intern.internshipFields.length !== 1 ? "s" : ""}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            intern.certificateIssued
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
-                          }`}
-                        >
-                          {intern.certificateIssued ? "Certified" : "In Progress"}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex space-x-2">
-                          <Link
-                            to={`/admin/edit-intern/${intern.id}`}
-                            className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 text-sm"
-                            title="Edit"
-                          >
-                            Edit
-                          </Link>
-                          <Link
-                            to={`/admin/generate-qr?id=${intern.uniqueId}`}
-                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
-                          >
-                            QR
-                          </Link>
-                          <Link
-                            to={`/admin/certificates?id=${intern.uniqueId}`}
-                            className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 text-sm"
-                          >
-                            Cert
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+
+                        <td className="py-4 px-4">
+                          <div className="flex space-x-2">
+                            <Link
+                              to={`/admin/edit-intern/${intern.id}`}
+                              className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 text-sm"
+                              title="Edit"
+                            >
+                              Edit
+                            </Link>
+                            <Link
+                              to={`/admin/generate-qr?id=${intern.uniqueId}`}
+                              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
+                            >
+                              QR
+                            </Link>
+                            <Link
+                              to={`/admin/certificates?id=${intern.uniqueId}`}
+                              className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 text-sm"
+                            >
+                              Cert
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -36,7 +36,7 @@ export class GoogleAuthService {
       this.accessToken = data.access_token;
       this.tokenExpiry = Date.now() + (data.expires_in * 1000) - 60000; // Subtract 1 minute for safety
       
-      return this.accessToken;
+      return this.accessToken!;
     } catch (error) {
       console.error('Error getting access token:', error);
       throw error;
@@ -45,7 +45,13 @@ export class GoogleAuthService {
 
   private async createJWT(): Promise<string> {
     const serviceAccountEmail = import.meta.env.VITE_GOOGLE_SERVICE_ACCOUNT_EMAIL;
-    const privateKey = import.meta.env.VITE_GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    const rawPrivateKey = import.meta.env.VITE_GOOGLE_PRIVATE_KEY;
+    const privateKey = rawPrivateKey ? rawPrivateKey.replace(/\\n/g, '\n') : null;
+
+      if (!serviceAccountEmail || !privateKey) {
+    throw new Error('Missing Google service account credentials');
+  }
+
     
     if (!serviceAccountEmail || !privateKey) {
       throw new Error('Missing Google service account credentials');

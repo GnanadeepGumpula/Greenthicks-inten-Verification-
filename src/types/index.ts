@@ -29,6 +29,8 @@ export interface InternshipField {
   description: string;
   completed: boolean; // New field to track completion status
   completedDate?: string; // When the field was marked as completed
+  certificateIssued?: boolean; // Optional field to track if a certificate was issued
+  createdAt: string;
 }
 
 export interface ThemeContextType {

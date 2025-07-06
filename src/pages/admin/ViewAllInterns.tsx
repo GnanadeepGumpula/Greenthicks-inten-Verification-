@@ -39,9 +39,17 @@ const ViewAllInterns: React.FC = () => {
           : "https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300",
       }));
 
-      setInterns(internsWithPhotos);
-    } catch (error) {
+      // Sort interns by createdAt in descending order (newest first)
+      const sortedInterns = internsWithPhotos.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA;
+      });
+
+      setInterns(sortedInterns);
+    } catch (error: any) {
       console.error("Error loading interns:", error);
+      alert(`Failed to load interns: ${error.message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }
@@ -65,11 +73,15 @@ const ViewAllInterns: React.FC = () => {
     // Status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter((intern) => {
+        const completedFields = intern.internshipFields.filter((field) => field.completed).length;
+        const totalFields = intern.internshipFields.length;
+        const isCompleted = completedFields === totalFields && totalFields > 0;
+
         switch (statusFilter) {
           case "certified":
-            return intern.certificateIssued;
+            return isCompleted;
           case "in-progress":
-            return !intern.certificateIssued;
+            return !isCompleted;
           case "completed-fields":
             return intern.internshipFields.some((field) => field.completed);
           case "no-completed-fields":
@@ -99,14 +111,13 @@ const ViewAllInterns: React.FC = () => {
       } else {
         alert("Failed to delete intern. Please try again.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting intern:", error);
-      alert("Error deleting intern. Please try again.");
+      alert(`Error deleting intern: ${error.message || "Unknown error"}`);
     } finally {
       setDeleting(null);
     }
   };
-
 
   if (loading) {
     return (
@@ -168,13 +179,21 @@ const ViewAllInterns: React.FC = () => {
             </div>
             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {interns.filter((i) => i.certificateIssued).length}
+                {interns.filter(
+                  (intern) =>
+                    intern.internshipFields.length > 0 &&
+                    intern.internshipFields.every((field) => field.completed)
+                ).length}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-300">Certified</div>
             </div>
             <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                {interns.filter((i) => !i.certificateIssued).length}
+                {interns.filter(
+                  (intern) =>
+                    intern.internshipFields.length > 0 &&
+                    !intern.internshipFields.every((field) => field.completed)
+                ).length}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-300">In Progress</div>
             </div>
@@ -201,6 +220,7 @@ const ViewAllInterns: React.FC = () => {
                 {filteredInterns.map((intern) => {
                   const completedFields = intern.internshipFields.filter((field) => field.completed).length;
                   const totalFields = intern.internshipFields.length;
+                  const isCompleted = completedFields === totalFields && totalFields > 0;
 
                   return (
                     <tr
@@ -255,12 +275,12 @@ const ViewAllInterns: React.FC = () => {
                       <td className="py-4 px-4">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            intern.certificateIssued
+                            isCompleted
                               ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
                               : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
                           }`}
                         >
-                          {intern.certificateIssued ? "Certified" : "In Progress"}
+                          {isCompleted ? "Certified" : "In Progress"}
                         </span>
                       </td>
 

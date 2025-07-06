@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react"
 import { FileText, Download, Search, User, Award } from "lucide-react"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
+import QRCode from "qrcode"
 import { googleSheetsService } from "../../services/googleSheets"
 import { googleDriveService } from "../../services/googleDrive"
 import type { Intern } from "../../types"
@@ -15,6 +16,8 @@ const Certificates: React.FC = () => {
   const [selectedField, setSelectedField] = useState("")
   const [interns, setInterns] = useState<Intern[]>([])
   const [loading, setLoading] = useState(true)
+  const [qrCodeUrl, setQrCodeUrl] = useState("")
+  const [qrLoading, setQrLoading] = useState(false)
   const certificateRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -26,7 +29,6 @@ const Certificates: React.FC = () => {
       setLoading(true)
       const internsData = await googleSheetsService.getInterns()
 
-      // Convert Google Drive file IDs to viewable URLs
       const internsWithPhotos = internsData.map((intern) => ({
         ...intern,
         photo: intern.photo
@@ -41,6 +43,98 @@ const Certificates: React.FC = () => {
       setLoading(false)
     }
   }
+
+  const generateQRCode = async (internId: string) => {
+    const intern = interns.find((i) => i.id === internId)
+    if (!intern) {
+      console.error("No intern found for ID:", internId)
+      return
+    }
+
+    try {
+      setQrLoading(true)
+      console.log("Generating QR code for intern:", intern.uniqueId)
+
+      const verificationUrl = `${window.location.origin}/verify/${intern.uniqueId}`
+      console.log("Verification URL:", verificationUrl)
+
+      const qrDataUrl = await QRCode.toDataURL(verificationUrl, {
+        width: 400,
+        margin: 2,
+        color: {
+          dark: "#000000",
+          light: "#FFFFFF",
+        },
+        errorCorrectionLevel: "H",
+      })
+
+      const canvas = document.createElement("canvas")
+      const ctx = canvas.getContext("2d")
+      if (!ctx) {
+        console.error("Failed to get 2D context for canvas")
+        setQrLoading(false)
+        return
+      }
+
+      canvas.width = 400
+      canvas.height = 400
+
+      const qrImage = new Image()
+      qrImage.crossOrigin = "anonymous"
+      qrImage.onload = () => {
+        ctx.drawImage(qrImage, 0, 0, 400, 400)
+
+        const logo = new Image()
+        logo.crossOrigin = "anonymous"
+        logo.onload = () => {
+          const logoSize = 60
+          const logoX = (400 - logoSize) / 2
+          const logoY = (400 - logoSize) / 2
+
+          ctx.save()
+          ctx.beginPath()
+          ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2 + 5, 0, 2 * Math.PI)
+          ctx.fillStyle = "white"
+          ctx.fill()
+
+          ctx.beginPath()
+          ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 0, 2 * Math.PI)
+          ctx.clip()
+          ctx.drawImage(logo, logoX, logoY, logoSize, logoSize)
+          ctx.restore()
+
+          const newQrCodeUrl = canvas.toDataURL()
+          setQrCodeUrl(newQrCodeUrl)
+          console.log("QR code generated successfully:", newQrCodeUrl)
+          setQrLoading(false)
+        }
+        logo.onerror = () => {
+          console.error("Failed to load logo image")
+          setQrLoading(false)
+        }
+        logo.src = "/Greenthicks_Tech_Logo.png"
+      }
+      qrImage.onerror = () => {
+        console.error("Failed to load QR image")
+        setQrLoading(false)
+      }
+      qrImage.src = qrDataUrl
+    } catch (error) {
+      console.error("Error generating QR code:", error)
+      alert("Error generating QR code. Please try again.")
+      setQrLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (selectedIntern && selectedField) {
+      console.log("Triggering QR code generation for intern:", selectedIntern)
+      generateQRCode(selectedIntern)
+    } else {
+      setQrCodeUrl("")
+      console.log("Clearing QR code due to missing intern or field")
+    }
+  }, [selectedIntern, selectedField])
 
   const filteredInterns = interns.filter(
     (intern) =>
@@ -64,10 +158,13 @@ const Certificates: React.FC = () => {
   }
 
   const generateCertificate = async () => {
-    if (!certificateRef.current || !selectedInternData || !selectedFieldData) return
+    if (!certificateRef.current || !selectedInternData || !selectedFieldData) {
+      console.error("Cannot generate certificate: missing ref or data")
+      return
+    }
 
     try {
-      const canvas = await html2canvas(certificateRef.current, {
+      const canvas = await html2canvas(certificateRef.current!, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
@@ -77,7 +174,7 @@ const Certificates: React.FC = () => {
       const imgData = canvas.toDataURL("image/png")
       const pdf = new jsPDF("landscape", "mm", "a4")
 
-      const imgWidth = 297 // A4 landscape width in mm
+      const imgWidth = 297
       const imgHeight = (canvas.height * imgWidth) / canvas.width
 
       pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight)
@@ -89,7 +186,10 @@ const Certificates: React.FC = () => {
   }
 
   const downloadImage = async () => {
-    if (!certificateRef.current || !selectedInternData || !selectedFieldData) return
+    if (!certificateRef.current || !selectedInternData || !selectedFieldData) {
+      console.error("Cannot download image: missing ref or data")
+      return
+    }
 
     try {
       const canvas = await html2canvas(certificateRef.current, {
@@ -201,8 +301,8 @@ const Certificates: React.FC = () => {
                     </p>
                     <p>
                       <span className="font-medium text-gray-700 dark:text-gray-300">Period:</span>{" "}
-                      {new Date(selectedFieldData.startDate).toLocaleDateString()} -{" "}
-                      {new Date(selectedFieldData.endDate).toLocaleDateString()}
+                      {new Date(selectedFieldData.startDate ?? "").toLocaleDateString()} - 
+                      {new Date(selectedFieldData.endDate ?? "").toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -211,7 +311,7 @@ const Certificates: React.FC = () => {
               <div className="space-y-3">
                 <button
                   onClick={generateCertificate}
-                  disabled={!selectedInternData || !selectedFieldData}
+                  disabled={!selectedInternData || !selectedFieldData || qrLoading}
                   className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center"
                 >
                   <FileText className="h-5 w-5 mr-2" />
@@ -220,7 +320,7 @@ const Certificates: React.FC = () => {
 
                 <button
                   onClick={downloadImage}
-                  disabled={!selectedInternData || !selectedFieldData}
+                  disabled={!selectedInternData || !selectedFieldData || qrLoading}
                   className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center"
                 >
                   <Download className="h-5 w-5 mr-2" />
@@ -277,8 +377,8 @@ const Certificates: React.FC = () => {
                           Duration: {selectedFieldData.duration} ({selectedFieldData.type})
                         </p>
                         <p className="text-lg text-gray-700">
-                          Period: {new Date(selectedFieldData.startDate).toLocaleDateString()} -{" "}
-                          {new Date(selectedFieldData.endDate).toLocaleDateString()}
+                          Period: {new Date(selectedFieldData.startDate ?? "").toLocaleDateString()} - 
+                                  {new Date(selectedFieldData.endDate ?? "").toLocaleDateString()}
                         </p>
                       </div>
 
@@ -293,9 +393,18 @@ const Certificates: React.FC = () => {
 
                         <div className="text-center">
                           <div className="bg-white p-2 border border-gray-300 rounded">
-                            <div className="w-16 h-16 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
-                              QR Code
-                            </div>
+                            {qrLoading ? (
+                              <div className="w-16 h-16 flex items-center justify-center bg-gray-200 text-xs text-gray-500">
+                                Loading QR...
+                              </div>
+                            ) : (
+                              <img
+                                src={qrCodeUrl || "/placeholder.svg"}
+                                alt="QR Code with Logo"
+                                className="w-16 h-16"
+                                onError={() => console.error("QR code image failed to load:", qrCodeUrl)}
+                              />
+                            )}
                           </div>
                           <p className="text-xs text-gray-500 mt-1">Scan to verify</p>
                         </div>

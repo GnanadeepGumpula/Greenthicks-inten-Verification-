@@ -7,7 +7,7 @@ export class GoogleDriveService {
     this.folderId = folderId;
   }
 
-  async uploadPhoto(file: File): Promise<string | null> {
+  async uploadPhoto(file: File, uniqueId?: string): Promise<string | null> {
     try {
       const headers = await googleAuthService.getAuthHeaders();
       
@@ -15,7 +15,9 @@ export class GoogleDriveService {
       const formData = new FormData();
       
       const metadata = {
-        name: `intern_photo_${Date.now()}_${file.name}`,
+         name: uniqueId
+      ? `intern_photo_${uniqueId}${file.name.slice(file.name.lastIndexOf('.'))}`
+      : `intern_photo_${Date.now()}_${file.name}`,
         parents: [this.folderId]
       };
       

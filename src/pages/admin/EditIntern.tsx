@@ -1,19 +1,19 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { useParams, useNavigate } from "react-router-dom"
-import { Plus, Trash2, Save, User, Mail, Calendar, Users, CheckCircle, Clock, ArrowLeft } from "lucide-react"
-import type { InternshipField, Intern } from "../../types"
-import { googleSheetsService } from "../../services/googleSheets"
-import { googleDriveService } from "../../services/googleDrive"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Plus, Trash2, Save, User, Mail, Calendar, Users, CheckCircle, Clock, ArrowLeft, FileText } from "lucide-react";
+import type { InternshipField, Intern } from "../../types";
+import { googleSheetsService } from "../../services/googleSheets";
+import { googleDriveService } from "../../services/googleDrive";
 
 const EditIntern: React.FC = () => {
-  const { internId } = useParams<{ internId: string }>()
-  const navigate = useNavigate()
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [intern, setIntern] = useState<Intern | null>(null)
+  const { internId } = useParams<{ internId: string }>();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [intern, setIntern] = useState<Intern | null>(null);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -27,28 +27,28 @@ const EditIntern: React.FC = () => {
     linkedinProfile: "",
     totalOfflineWeeks: 0,
     totalOnlineWeeks: 0,
-  })
+  });
 
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string>("")
-  const [internshipFields, setInternshipFields] = useState<Partial<InternshipField>[]>([])
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string>("");
+  const [internshipFields, setInternshipFields] = useState<Partial<InternshipField>[]>([]);
 
   useEffect(() => {
     if (internId) {
-      loadIntern()
+      loadIntern();
     }
-  }, [internId])
+  }, [internId]);
 
   const loadIntern = async () => {
-    if (!internId) return
+    if (!internId) return;
 
     try {
-      setLoading(true)
-      const interns = await googleSheetsService.getInterns()
-      const foundIntern = interns.find((i) => i.id === internId || i.uniqueId === internId)
+      setLoading(true);
+      const interns = await googleSheetsService.getInterns();
+      const foundIntern = interns.find((i) => i.id === internId || i.uniqueId === internId);
 
       if (foundIntern) {
-        setIntern(foundIntern)
+        setIntern(foundIntern);
         setFormData({
           firstName: foundIntern.firstName,
           lastName: foundIntern.lastName,
@@ -61,110 +61,107 @@ const EditIntern: React.FC = () => {
           linkedinProfile: foundIntern.linkedinProfile,
           totalOfflineWeeks: foundIntern.totalOfflineWeeks,
           totalOnlineWeeks: foundIntern.totalOnlineWeeks,
-        })
+        });
 
         // Set photo preview if exists
         if (foundIntern.photo) {
-          setPhotoPreview(googleDriveService.getPhotoUrl(foundIntern.photo))
+          setPhotoPreview(googleDriveService.getPhotoUrl(foundIntern.photo));
         }
 
-        // Load internship fields
+        // Load internship fields and sort by createdAt (newest first)
         setInternshipFields(
-          foundIntern.internshipFields.map((field) => ({
-            ...field,
-            projectLinks: field.projectLinks || [""],
-            videoLinks: field.videoLinks || [""],
-          })),
-        )
+          foundIntern.internshipFields
+            .map((field) => ({
+              ...field,
+              projectLinks: field.projectLinks || [""],
+              videoLinks: field.videoLinks || [""],
+              certificateIssued: field.certificateIssued || false,
+              createdAt: field.createdAt || new Date().toISOString(), // Fallback for existing fields
+            }))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+        );
       } else {
-        alert("Intern not found")
-        navigate("/admin/view-all")
+        alert("Intern not found");
+        navigate("/admin/view-all");
       }
-    } catch (error) {
-      console.error("Error loading intern:", error)
-      alert("Error loading intern data")
+    } catch (error: any) {
+      console.error("Error loading intern:", error);
+      alert(`Error loading intern data: ${error.message || "Unknown error"}`);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name.includes("Weeks") ? Number.parseInt(value) || 0 : value,
-    }))
-  }
+      [name]: name.includes("Weeks") ? parseInt(value) || 0 : value,
+    }));
+  };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0];
     if (file) {
-      setPhotoFile(file)
-
-      // Create preview
-      const reader = new FileReader()
+      setPhotoFile(file);
+      const reader = new FileReader();
       reader.onload = (e) => {
-        setPhotoPreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
+        setPhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
-  }
+  };
 
   const handleFieldChange = (index: number, field: string, value: string | boolean) => {
     setInternshipFields((prev) => {
-      const updated = [...prev]
-      updated[index] = { ...updated[index], [field]: value }
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
 
-      // Auto-calculate duration when dates change or completion status changes
       if ((field === "startDate" || field === "endDate" || field === "completed") && updated[index].startDate) {
-        const currentField = updated[index]
+        const currentField = updated[index];
 
         if (field === "completed" && value === true && !currentField.endDate) {
-          // Set end date to today if not already set when marking as completed
-          currentField.endDate = new Date().toISOString().split("T")[0]
-          currentField.completedDate = new Date().toISOString()
+          currentField.endDate = new Date().toISOString().split("T")[0];
+          currentField.completedDate = new Date().toISOString();
         }
 
-        // Calculate duration if both dates are available
         if (currentField.startDate && currentField.endDate) {
-          const start = new Date(currentField.startDate)
-          const end = new Date(currentField.endDate)
+          const start = new Date(currentField.startDate);
+          const end = new Date(currentField.endDate);
 
           if (end >= start) {
-            const diffTime = end.getTime() - start.getTime()
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-            const diffWeeks = Math.ceil(diffDays / 7)
-            currentField.duration = `${diffWeeks} weeks`
+            const diffTime = end.getTime() - start.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffWeeks = Math.ceil(diffDays / 7);
+            currentField.duration = `${diffWeeks} weeks`;
           }
         }
 
         if (field === "completed" && value === false) {
-          // Clear end date and duration when marked as incomplete
-          currentField.endDate = ""
-          currentField.duration = ""
-          currentField.completedDate = ""
+          currentField.endDate = "";
+          currentField.duration = "";
+          currentField.completedDate = "";
+          currentField.certificateIssued = false;
         }
       }
 
-      // Auto-calculate total weeks
       const totalOnlineWeeks = updated
         .filter((f) => f.type === "online" && f.completed && f.duration)
-        .reduce((acc, f) => acc + (Number.parseInt(f.duration?.split(" ")[0] || "0") || 0), 0)
+        .reduce((acc, f) => acc + (parseInt(f.duration?.split(" ")[0] || "0") || 0), 0);
 
       const totalOfflineWeeks = updated
         .filter((f) => f.type === "offline" && f.completed && f.duration)
-        .reduce((acc, f) => acc + (Number.parseInt(f.duration?.split(" ")[0] || "0") || 0), 0)
+        .reduce((acc, f) => acc + (parseInt(f.duration?.split(" ")[0] || "0") || 0), 0);
 
-      // Update form data with calculated totals
       setFormData((prev) => ({
         ...prev,
         totalOnlineWeeks,
         totalOfflineWeeks,
-      }))
+      }));
 
-      return updated
-    })
-  }
+      return updated;
+    });
+  };
 
   const handleArrayFieldChange = (
     fieldIndex: number,
@@ -173,37 +170,36 @@ const EditIntern: React.FC = () => {
     value: string,
   ) => {
     setInternshipFields((prev) => {
-      const updated = [...prev]
-      const currentArray = updated[fieldIndex][arrayField] || []
-      const newArray = [...currentArray]
-      newArray[linkIndex] = value
-      updated[fieldIndex] = { ...updated[fieldIndex], [arrayField]: newArray }
-      return updated
-    })
-  }
+      const updated = [...prev];
+      const currentArray = updated[fieldIndex][arrayField] || [];
+      const newArray = [...currentArray];
+      newArray[linkIndex] = value;
+      updated[fieldIndex] = { ...updated[fieldIndex], [arrayField]: newArray };
+      return updated;
+    });
+  };
 
   const addArrayField = (fieldIndex: number, arrayField: "projectLinks" | "videoLinks") => {
     setInternshipFields((prev) => {
-      const updated = [...prev]
-      const currentArray = updated[fieldIndex][arrayField] || []
-      updated[fieldIndex] = { ...updated[fieldIndex], [arrayField]: [...currentArray, ""] }
-      return updated
-    })
-  }
+      const updated = [...prev];
+      const currentArray = updated[fieldIndex][arrayField] || [];
+      updated[fieldIndex] = { ...updated[fieldIndex], [arrayField]: [...currentArray, ""] };
+      return updated;
+    });
+  };
 
   const removeArrayField = (fieldIndex: number, arrayField: "projectLinks" | "videoLinks", linkIndex: number) => {
     setInternshipFields((prev) => {
-      const updated = [...prev]
-      const currentArray = updated[fieldIndex][arrayField] || []
-      const newArray = currentArray.filter((_, i) => i !== linkIndex)
-      updated[fieldIndex] = { ...updated[fieldIndex], [arrayField]: newArray }
-      return updated
-    })
-  }
+      const updated = [...prev];
+      const currentArray = updated[fieldIndex][arrayField] || [];
+      const newArray = currentArray.filter((_: string, i: number) => i !== linkIndex);
+      updated[fieldIndex] = { ...updated[fieldIndex], [arrayField]: newArray };
+      return updated;
+    });
+  };
 
   const addInternshipField = () => {
     setInternshipFields((prev) => [
-      ...prev,
       {
         fieldName: "",
         startDate: "",
@@ -214,32 +210,88 @@ const EditIntern: React.FC = () => {
         videoLinks: [""],
         description: "",
         completed: false,
+        certificateIssued: false,
+        createdAt: new Date().toISOString(),
       },
-    ])
-  }
+      ...prev, // New fields appear first
+    ]);
+  };
 
-  const removeInternshipField = (index: number) => {
-    setInternshipFields((prev) => prev.filter((_, i) => i !== index))
-  }
+  const removeInternshipField = async (index: number) => {
+    const field = internshipFields[index];
+    if (field.id) {
+      try {
+        setSaving(true);
+        const success = await googleSheetsService.deleteInternshipField(field.id);
+        if (!success) {
+          alert("Failed to delete internship field from Google Sheet.");
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100)); // Delay to avoid rate limits
+      } catch (error: any) {
+        console.error("Error deleting internship field:", error);
+        alert(`Error deleting internship field: ${error.message || "Unknown error"}`);
+        return;
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    setInternshipFields((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleIssueCertificate = async (fieldIndex: number) => {
+    try {
+      setSaving(true);
+      const field = internshipFields[fieldIndex];
+      const originalFields = [...internshipFields];
+
+      // Update local state
+      setInternshipFields((prev) => {
+        const updated = [...prev];
+        updated[fieldIndex] = { ...updated[fieldIndex], certificateIssued: true };
+        return updated;
+      });
+
+      // Update the field in Google Sheets
+      if (field.id) {
+        const success = await googleSheetsService.updateInternshipField(field.id, {
+          ...field,
+          certificateIssued: true,
+        } as Omit<InternshipField, "id">);
+        if (!success) {
+          throw new Error("Failed to update certificate status in Google Sheet");
+        }
+      } else {
+        throw new Error("Cannot issue certificate for unsaved field");
+      }
+
+      alert(`Certificate issued for ${internshipFields[fieldIndex].fieldName}`);
+    } catch (error: any) {
+      console.error("Error issuing certificate:", error);
+      setInternshipFields(originalFields); // Revert state on failure
+      alert(`Failed to issue certificate: ${error.message || "Unknown error"}`);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!intern) return
+    e.preventDefault();
+    if (!intern) return;
 
-    setSaving(true)
+    setSaving(true);
 
     try {
-      let photoFileId = formData.photo
+      let photoFileId = formData.photo;
 
       // Upload new photo if provided
       if (photoFile) {
-        const uploadedFileId = await googleDriveService.uploadPhoto(photoFile)
+        const uploadedFileId = await googleDriveService.uploadPhoto(photoFile, intern?.uniqueId);
         if (uploadedFileId) {
-          photoFileId = uploadedFileId
+          photoFileId = uploadedFileId;
         } else {
-          alert("Failed to upload photo. Please try again.")
-          setSaving(false)
-          return
+          throw new Error("Failed to upload photo");
         }
       }
 
@@ -247,15 +299,12 @@ const EditIntern: React.FC = () => {
       const updatedInternData = {
         ...formData,
         photo: photoFileId,
-      }
+      };
 
       // Update intern in Google Sheets
-      const success = await googleSheetsService.updateIntern(intern.id, updatedInternData)
-
+      const success = await googleSheetsService.updateIntern(intern.id, updatedInternData);
       if (!success) {
-        alert("Failed to update intern. Please try again.")
-        setSaving(false)
-        return
+        throw new Error("Failed to update intern");
       }
 
       // Handle internship fields - add new ones and update existing ones
@@ -266,28 +315,29 @@ const EditIntern: React.FC = () => {
             projectLinks: field.projectLinks?.filter((link) => link.trim()) || [],
             videoLinks: field.videoLinks?.filter((link) => link.trim()) || [],
             completed: field.completed || false,
+            certificateIssued: field.certificateIssued || false,
             completedDate: field.completed ? field.completedDate || new Date().toISOString() : undefined,
-          }
+            createdAt: field.createdAt || new Date().toISOString(),
+          };
 
           if (field.id) {
-            // Update existing field
-            await googleSheetsService.updateInternshipField(field.id, fieldData as Omit<InternshipField, "id">)
+            await googleSheetsService.updateInternshipField(field.id, fieldData as Omit<InternshipField, "id">);
           } else {
-            // Add new field
-            await googleSheetsService.addInternshipField(intern.id, fieldData as Omit<InternshipField, "id">)
+            await googleSheetsService.addInternshipField(intern.id, fieldData as Omit<InternshipField, "id">);
           }
+          await new Promise((resolve) => setTimeout(resolve, 100)); // Delay to avoid rate limits
         }
       }
 
-      alert("Intern updated successfully!")
-      navigate("/admin/view-all")
-    } catch (error) {
-      console.error("Error updating intern:", error)
-      alert("Failed to update intern. Please check your internet connection and try again.")
+      alert("Intern updated successfully!");
+      navigate("/admin/view-all");
+    } catch (error: any) {
+      console.error("Error updating intern:", error);
+      alert(`Failed to update intern: ${error.message || "Unknown error"}`);
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -297,7 +347,7 @@ const EditIntern: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-300">Loading intern data...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!intern) {
@@ -313,7 +363,7 @@ const EditIntern: React.FC = () => {
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -334,7 +384,6 @@ const EditIntern: React.FC = () => {
             </button>
           </div>
 
-          {/* Current Intern Info */}
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-8">
             <div className="flex items-center space-x-4">
               <img
@@ -343,25 +392,23 @@ const EditIntern: React.FC = () => {
                 className="w-16 h-16 rounded-full object-cover border-2 border-blue-200"
               />
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                <h3 className="text-lg font-semibold textagreeth-gray-900 dark:text-white">
                   {intern.firstName} {intern.lastName}
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">ID: {intern.uniqueId}</p>
+                <p className="text-sm text-gray-600 dark:text-gray  -gray-300">ID: {intern.uniqueId}</p>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {intern.internshipFields.length} existing field(s)
+                  {internshipFields.length} internship field(s)
                 </p>
               </div>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Personal Information */}
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
                 <User className="h-5 w-5 mr-2 text-blue-500" />
                 Personal Information
               </h2>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -376,9 +423,8 @@ const EditIntern: React.FC = () => {
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Last Name *</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray- яке300 mb-2">Last Name *</label>
                   <input
                     type="text"
                     name="lastName"
@@ -388,7 +434,6 @@ const EditIntern: React.FC = () => {
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email *</label>
                   <input
@@ -400,7 +445,6 @@ const EditIntern: React.FC = () => {
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Phone Number *
@@ -414,7 +458,6 @@ const EditIntern: React.FC = () => {
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Date of Birth *
@@ -428,7 +471,6 @@ const EditIntern: React.FC = () => {
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Update Photo
@@ -456,14 +498,11 @@ const EditIntern: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* Family Information */}
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
                 <Users className="h-5 w-5 mr-2 text-green-500" />
                 Family Information
               </h2>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -478,7 +517,6 @@ const EditIntern: React.FC = () => {
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Mother's Name *
@@ -494,14 +532,11 @@ const EditIntern: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* Professional Information */}
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
                 <Mail className="h-5 w-5 mr-2 text-purple-500" />
                 Professional Information
               </h2>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -516,7 +551,6 @@ const EditIntern: React.FC = () => {
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Total Online Weeks (Auto-calculated)
@@ -529,7 +563,6 @@ const EditIntern: React.FC = () => {
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white cursor-not-allowed"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Total Offline Weeks (Auto-calculated)
@@ -544,8 +577,6 @@ const EditIntern: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* Internship Fields */}
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
@@ -561,15 +592,14 @@ const EditIntern: React.FC = () => {
                   <span>Add New Field</span>
                 </button>
               </div>
-
               {internshipFields.map((field, fieldIndex) => (
                 <div
-                  key={fieldIndex}
+                  key={field.id || `new-field-${fieldIndex}`}
                   className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 border border-gray-200 dark:border-gray-600"
                 >
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                      {field.id ? `Existing Field ${fieldIndex + 1}` : `New Field ${fieldIndex + 1}`}
+                      {field.id ? `Field ${field.fieldName || fieldIndex + 1}` : `New Field ${fieldIndex + 1}`}
                     </h3>
                     <div className="flex items-center space-x-3">
                       {field.id && (
@@ -599,17 +629,16 @@ const EditIntern: React.FC = () => {
                           )}
                         </span>
                       </label>
-
                       <button
                         type="button"
                         onClick={() => removeInternshipField(fieldIndex)}
-                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                        disabled={saving}
+                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
                       >
                         <Trash2 className="h-5 w-5" />
                       </button>
                     </div>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -624,7 +653,6 @@ const EditIntern: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type *</label>
                       <select
@@ -636,7 +664,6 @@ const EditIntern: React.FC = () => {
                         <option value="offline">Offline</option>
                       </select>
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Start Date *
@@ -649,7 +676,6 @@ const EditIntern: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         End Date {field.completed ? "*" : "(Auto-filled when completed)"}
@@ -663,7 +689,6 @@ const EditIntern: React.FC = () => {
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
                       />
                     </div>
-
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Duration {field.completed ? "(Auto-calculated)" : "(Will be calculated when completed)"}
@@ -679,7 +704,6 @@ const EditIntern: React.FC = () => {
                       />
                     </div>
                   </div>
-
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Description
@@ -692,8 +716,6 @@ const EditIntern: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     />
                   </div>
-
-                  {/* Project Links */}
                   <div className="mb-4">
                     <div className="flex justify-between items-center mb-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -730,8 +752,6 @@ const EditIntern: React.FC = () => {
                       </div>
                     ))}
                   </div>
-
-                  {/* Video Links */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Video Links</label>
@@ -764,20 +784,33 @@ const EditIntern: React.FC = () => {
                       </div>
                     ))}
                   </div>
-
-                  {/* Completion Status Info */}
-                  {field.completed && field.completedDate && (
-                    <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                      <p className="text-sm text-green-700 dark:text-green-300">
-                        ✓ Completed on {new Date(field.completedDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                  )}
+                  <div className="mt-4">
+                    {field.completed && field.completedDate && (
+                      <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                        <p className="text-sm text-green-700 dark:text-green-300">
+                          ✓ Completed on {new Date(field.completedDate).toLocaleDateString()}
+                        </p>
+                        {field.certificateIssued ? (
+                          <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+                            ✓ Certificate Issued
+                          </p>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleIssueCertificate(fieldIndex)}
+                            disabled={saving}
+                            className="mt-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                          >
+                            <FileText className="h-4 w-4" />
+                            <span>Issue Certificate</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
-
-            {/* Submit Button */}
             <div className="flex justify-end space-x-4">
               <button
                 type="button"
@@ -808,7 +841,7 @@ const EditIntern: React.FC = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default EditIntern
+export default EditIntern;

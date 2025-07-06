@@ -1,8 +1,6 @@
-"use client"
-
 import type React from "react"
 import { useState } from "react"
-import { Plus, Trash2, Save, User, Mail, Calendar, Users, CheckCircle, Clock } from "lucide-react"
+import { Plus, Trash2, Save, User, Mail, Calendar, Users, CheckCircle, Clock, FileText } from "lucide-react"
 import type { InternshipField } from "../../types"
 import { googleSheetsService } from "../../services/googleSheets"
 import { googleDriveService } from "../../services/googleDrive"
@@ -40,6 +38,7 @@ const AddIntern: React.FC = () => {
       videoLinks: [""],
       description: "",
       completed: false,
+      certificateIssued: false,
     },
   ])
 
@@ -52,8 +51,7 @@ const AddIntern: React.FC = () => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: name.includes("Weeks") ? Number.parseInt(value) || 0 : value,
-    }))
+      [name]:  name.includes("Weeks") ? parseInt(value as string) || 0 : value,    }))
   }
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,10 +97,11 @@ const AddIntern: React.FC = () => {
         }
 
         if (field === "completed" && value === false) {
-          // Clear end date and duration when marked as incomplete
+          // Clear end date, duration, and certificate status when marked as incomplete
           currentField.endDate = ""
           currentField.duration = ""
           currentField.completedDate = ""
+          currentField.certificateIssued = false
         }
       }
 
@@ -174,12 +173,32 @@ const AddIntern: React.FC = () => {
         videoLinks: [""],
         description: "",
         completed: false,
+        certificateIssued: false,
       },
     ])
   }
 
   const removeInternshipField = (index: number) => {
     setInternshipFields((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleIssueCertificate = async (fieldIndex: number) => {
+    try {
+      setUploading(true)
+      // Simulate certificate issuance logic
+      // In a real implementation, this would likely involve generating a PDF and uploading to Google Drive
+      setInternshipFields((prev) => {
+        const updated = [...prev]
+        updated[fieldIndex] = { ...updated[fieldIndex], certificateIssued: true }
+        return updated
+      })
+      alert(`Certificate issued for ${internshipFields[fieldIndex].fieldName}`)
+    } catch (error) {
+      console.error("Error issuing certificate:", error)
+      alert("Failed to issue certificate. Please try again.")
+    } finally {
+      setUploading(false)
+    }
   }
 
   const checkForDuplicates = async (
@@ -256,7 +275,7 @@ const AddIntern: React.FC = () => {
 
       // Upload photo to Google Drive if provided
       if (photoFile) {
-        const uploadedFileId = await googleDriveService.uploadPhoto(photoFile)
+        const uploadedFileId = await googleDriveService.uploadPhoto(photoFile, uniqueId)
         if (uploadedFileId) {
           photoFileId = uploadedFileId
         } else {
@@ -292,6 +311,7 @@ const AddIntern: React.FC = () => {
             projectLinks: field.projectLinks?.filter((link) => link.trim()) || [],
             videoLinks: field.videoLinks?.filter((link) => link.trim()) || [],
             completed: field.completed || false,
+            certificateIssued: field.certificateIssued || false,
             completedDate: field.completed ? field.completedDate || new Date().toISOString() : undefined,
           } as Omit<InternshipField, "id">
 
@@ -330,6 +350,7 @@ const AddIntern: React.FC = () => {
           videoLinks: [""],
           description: "",
           completed: false,
+          certificateIssued: false,
         },
       ])
     } catch (error) {
@@ -753,14 +774,31 @@ const AddIntern: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* Completion Status Info */}
-                  {field.completed && field.completedDate && (
-                    <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                      <p className="text-sm text-green-700 dark:text-green-300">
-                        ✓ Completed on {new Date(field.completedDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                  )}
+                  {/* Completion Status and Certificate Button */}
+                  <div className="mt-4">
+                    {field.completed && field.completedDate && (
+                      <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                        <p className="text-sm text-green-700 dark:text-green-300">
+                          ✓ Completed on {new Date(field.completedDate).toLocaleDateString()}
+                        </p>
+                        {field.certificateIssued ? (
+                          <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+                            ✓ Certificate Issued
+                          </p>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleIssueCertificate(fieldIndex)}
+                            disabled={uploading}
+                            className="mt-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                          >
+                            <FileText className="h-4 w-4" />
+                            <span>Issue Certificate</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

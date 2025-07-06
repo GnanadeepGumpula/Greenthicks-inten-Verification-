@@ -56,15 +56,15 @@ const Support: React.FC = () => {
       icon: Mail,
       title: 'Email Support',
       description: 'Get help via email',
-      contact: 'support@greenthicks.com',
-      action: 'mailto:support@greenthicks.com'
+      contact: 'greenthicksss@gmail.com',
+      action: 'mailto:greenthicksss@gmail.com'
     },
     {
       icon: Phone,
       title: 'Phone Support',
       description: 'Speak with our team',
-      contact: '+1 (555) 123-4567',
-      action: 'tel:+15551234567'
+      contact: '+91 9705045597',
+      action: 'tel:+919705045597'
     },
     {
       icon: MessageCircle,
@@ -275,9 +275,9 @@ const Support: React.FC = () => {
                 </h3>
                 <div className="text-gray-700 dark:text-gray-300">
                   <p>Green Thicks Headquarters</p>
-                  <p>123 Tech Street, Suite 456</p>
-                  <p>Innovation City, IC 12345</p>
-                  <p>United States</p>
+                  <p>Hanamkonda, Warangal</p>
+                  <p>Telangana, 504208</p>
+                  <p>India</p>
                 </div>
               </div>
             </div>
