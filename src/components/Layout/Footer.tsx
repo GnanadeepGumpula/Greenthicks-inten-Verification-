@@ -71,7 +71,7 @@ const Footer: React.FC = () => {
               </li>
               <li className="flex items-center space-x-2">
                 <Phone className="h-4 w-4 text-green-400" />
-                <span className="text-gray-300">+91 9705045597</span>
+                <span className="text-gray-300">+91 8919512741</span>
               </li>
               <li className="flex items-center space-x-2">
                 <MapPin className="h-4 w-4 text-green-400" />

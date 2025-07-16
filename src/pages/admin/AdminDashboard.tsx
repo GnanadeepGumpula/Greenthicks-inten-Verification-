@@ -89,7 +89,7 @@ const AdminDashboard: React.FC = () => {
     },
   ];
 
-  const recentInterns = interns.slice(0, 5);
+  const recentInterns = interns.slice(-5).reverse(); // Get the last 5 interns and reverse the order
 
   if (loading) {
     return (

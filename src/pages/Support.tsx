@@ -63,8 +63,8 @@ const Support: React.FC = () => {
       icon: Phone,
       title: 'Phone Support',
       description: 'Speak with our team',
-      contact: '+91 9705045597',
-      action: 'tel:+919705045597'
+      contact: '+91 8919512741',
+      action: 'tel:+91 8919512741'
     },
     {
       icon: MessageCircle,

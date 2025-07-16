@@ -1,9 +1,9 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Plus, Trash2, Save, User, Mail, Calendar, Users, CheckCircle, Clock, ArrowLeft, FileText } from "lucide-react";
+import { Plus, Trash2, Save, User, Mail, Calendar, Users, CheckCircle, Clock, ArrowLeft, FileText, Image } from "lucide-react";
 import type { InternshipField, Intern } from "../../types";
 import { googleSheetsService } from "../../services/googleSheets";
 import { googleDriveService } from "../../services/googleDrive";
@@ -14,7 +14,10 @@ const EditIntern: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [intern, setIntern] = useState<Intern | null>(null);
-
+  const [isDragging, setIsDragging] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string>("");
+  const [photoError, setPhotoError] = useState<string>("");
+  const [photoPreview, setPhotoPreview] = useState<string>("");
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -28,10 +31,9 @@ const EditIntern: React.FC = () => {
     totalOfflineWeeks: 0,
     totalOnlineWeeks: 0,
   });
-
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string>("");
   const [internshipFields, setInternshipFields] = useState<Partial<InternshipField>[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (internId) {
@@ -63,12 +65,15 @@ const EditIntern: React.FC = () => {
           totalOnlineWeeks: foundIntern.totalOnlineWeeks,
         });
 
-        // Set photo preview if exists
         if (foundIntern.photo) {
-          setPhotoPreview(googleDriveService.getPhotoUrl(foundIntern.photo));
+          const fileId = extractGoogleDriveId(foundIntern.photo);
+          const previewUrl = fileId
+            ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w300-h300`
+            : foundIntern.photo;
+          setPhotoPreview(previewUrl);
+          setPhotoUrl(foundIntern.photo);
         }
 
-        // Load internship fields and sort by createdAt (newest first)
         setInternshipFields(
           foundIntern.internshipFields
             .map((field) => ({
@@ -76,7 +81,7 @@ const EditIntern: React.FC = () => {
               projectLinks: field.projectLinks || [""],
               videoLinks: field.videoLinks || [""],
               certificateIssued: field.certificateIssued || false,
-              createdAt: field.createdAt || new Date().toISOString(), // Fallback for existing fields
+              createdAt: field.createdAt || new Date().toISOString(),
             }))
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
         );
@@ -104,11 +109,99 @@ const EditIntern: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       setPhotoFile(file);
+      setPhotoUrl("");
+      setPhotoError("");
       const reader = new FileReader();
       reader.onload = (e) => {
         setPhotoPreview(e.target?.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith("image/")) {
+      setPhotoFile(file);
+      setPhotoUrl("");
+      setPhotoError("");
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setPhotoError("Please drop a valid image file (e.g., .jpg, .png).");
+    }
+  };
+
+  const extractGoogleDriveId = (url: string): string | null => {
+    const patterns = [
+      /\/file\/d\/([a-zA-Z0-9_-]+)/, // Standard sharing link: https://drive.google.com/file/d/<fileId>/view
+      /id=([a-zA-Z0-9_-]+)/, // Alternative link: https://drive.google.com/open?id=<fileId>
+      /thumbnail\?id=([a-zA-Z0-9_-]+)/, // Thumbnail link: https://drive.google.com/thumbnail?id=<fileId>
+      /^([a-zA-Z0-9_-]+)$/, // Direct file ID
+    ];
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) return match[1];
+    }
+    return null;
+  };
+
+  const getGoogleDrivePreviewUrl = (fileId: string): string[] => {
+    return [
+      `https://drive.google.com/thumbnail?id=${fileId}&sz=w300-h300`,
+      `https://drive.google.com/uc?export=view&id=${fileId}`,
+    ];
+  };
+
+  const handlePhotoUrlChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value;
+    setPhotoUrl(url);
+    setPhotoFile(null);
+    setPhotoError("");
+
+    if (!url) {
+      setPhotoPreview("");
+      return;
+    }
+
+    const googleDriveId = extractGoogleDriveId(url);
+    if (googleDriveId) {
+      const [thumbnailUrl, fallbackUrl] = getGoogleDrivePreviewUrl(googleDriveId);
+      setPhotoPreview(thumbnailUrl);
+    } else if (url.startsWith("http")) {
+      setPhotoPreview(url);
+    } else {
+      setPhotoError("Invalid URL format. Please provide a valid Google Drive or direct image URL.");
+      setPhotoPreview("");
+    }
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const currentUrl = (e.target as HTMLImageElement).src;
+    const googleDriveId = extractGoogleDriveId(photoUrl);
+    if (googleDriveId && currentUrl.includes("thumbnail")) {
+      const fallbackUrl = `https://drive.google.com/uc?export=view&id=${googleDriveId}`;
+      setPhotoPreview(fallbackUrl);
+    } else {
+      setPhotoError(
+        "Failed to load image. Ensure the Google Drive file is shared with 'Anyone with the link' and is a valid image (e.g., .jpg, .png).",
+      );
+      setPhotoPreview("");
     }
   };
 
@@ -208,12 +301,10 @@ const EditIntern: React.FC = () => {
         type: "online",
         projectLinks: [""],
         videoLinks: [""],
-        description: "",
-        completed: false,
         certificateIssued: false,
         createdAt: new Date().toISOString(),
       },
-      ...prev, // New fields appear first
+      ...prev,
     ]);
   };
 
@@ -227,7 +318,7 @@ const EditIntern: React.FC = () => {
           alert("Failed to delete internship field from Google Sheet.");
           return;
         }
-        await new Promise((resolve) => setTimeout(resolve, 100)); // Delay to avoid rate limits
+        await new Promise((resolve) => setTimeout(resolve, 100));
       } catch (error: any) {
         console.error("Error deleting internship field:", error);
         alert(`Error deleting internship field: ${error.message || "Unknown error"}`);
@@ -246,14 +337,12 @@ const EditIntern: React.FC = () => {
       const field = internshipFields[fieldIndex];
       const originalFields = [...internshipFields];
 
-      // Update local state
       setInternshipFields((prev) => {
         const updated = [...prev];
         updated[fieldIndex] = { ...updated[fieldIndex], certificateIssued: true };
         return updated;
       });
 
-      // Update the field in Google Sheets
       if (field.id) {
         const success = await googleSheetsService.updateInternshipField(field.id, {
           ...field,
@@ -269,7 +358,7 @@ const EditIntern: React.FC = () => {
       alert(`Certificate issued for ${internshipFields[fieldIndex].fieldName}`);
     } catch (error: any) {
       console.error("Error issuing certificate:", error);
-      setInternshipFields(originalFields); // Revert state on failure
+      setInternshipFields(originalFields);
       alert(`Failed to issue certificate: ${error.message || "Unknown error"}`);
     } finally {
       setSaving(false);
@@ -285,7 +374,6 @@ const EditIntern: React.FC = () => {
     try {
       let photoFileId = formData.photo;
 
-      // Upload new photo if provided
       if (photoFile) {
         const uploadedFileId = await googleDriveService.uploadPhoto(photoFile, intern?.uniqueId);
         if (uploadedFileId) {
@@ -293,21 +381,21 @@ const EditIntern: React.FC = () => {
         } else {
           throw new Error("Failed to upload photo");
         }
+      } else if (photoUrl) {
+        const googleDriveId = extractGoogleDriveId(photoUrl);
+        photoFileId = googleDriveId || photoUrl;
       }
 
-      // Update intern data
       const updatedInternData = {
         ...formData,
         photo: photoFileId,
       };
 
-      // Update intern in Google Sheets
       const success = await googleSheetsService.updateIntern(intern.id, updatedInternData);
       if (!success) {
         throw new Error("Failed to update intern");
       }
 
-      // Handle internship fields - add new ones and update existing ones
       for (const field of internshipFields) {
         if (field.fieldName && field.startDate) {
           const fieldData = {
@@ -325,7 +413,7 @@ const EditIntern: React.FC = () => {
           } else {
             await googleSheetsService.addInternshipField(intern.id, fieldData as Omit<InternshipField, "id">);
           }
-          await new Promise((resolve) => setTimeout(resolve, 100)); // Delay to avoid rate limits
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
       }
 
@@ -387,15 +475,16 @@ const EditIntern: React.FC = () => {
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-8">
             <div className="flex items-center space-x-4">
               <img
-                src={photoPreview || intern.photo}
+                src={photoPreview || "/placeholder.svg"}
                 alt={`${intern.firstName} ${intern.lastName}`}
                 className="w-16 h-16 rounded-full object-cover border-2 border-blue-200"
+                onError={handleImageError}
               />
               <div>
-                <h3 className="text-lg font-semibold textagreeth-gray-900 dark:text-white">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   {intern.firstName} {intern.lastName}
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray  -gray-300">ID: {intern.uniqueId}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300">ID: {intern.uniqueId}</p>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
                   {internshipFields.length} internship field(s)
                 </p>
@@ -424,7 +513,7 @@ const EditIntern: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray- яке300 mb-2">Last Name *</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Last Name *</label>
                   <input
                     type="text"
                     name="lastName"
@@ -476,21 +565,58 @@ const EditIntern: React.FC = () => {
                     Update Photo
                   </label>
                   <div className="space-y-3">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoChange}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-                    />
-                    {photoPreview && (
-                      <div className="flex items-center space-x-3">
+                    <div
+                      className={`border-2 border-dashed rounded-lg p-6 text-center ${
+                        isDragging
+                          ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                          : "border-gray-300 dark:border-gray-600"
+                      }`}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Image className="mx-auto h-8 w-8 text-gray-400" />
+                      <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        Drag and drop an image here, or click to select
+                      </p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        className="hidden"
+                        ref={fileInputRef}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Or enter image URL
+                      </label>
+                      <input
+                        type="url"
+                        value={photoUrl}
+                        onChange={handlePhotoUrlChange}
+                        placeholder="e.g., https://drive.google.com/file/d/..."
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      />
+                      {photoError && (
+                        <p className="mt-2 text-sm text-red-600 dark:text-red-400">{photoError}</p>
+                      )}
+                    </div>
+                    {(photoPreview || photoUrl) && (
+                      <div className="flex items-center space-x-3 mt-3">
                         <img
                           src={photoPreview || "/placeholder.svg"}
                           alt="Photo preview"
                           className="w-16 h-16 rounded-full object-cover border-2 border-green-200"
+                          onError={handleImageError}
                         />
                         <span className="text-sm text-green-600 dark:text-green-400">
-                          {photoFile ? "✓ New photo selected" : "✓ Current photo"}
+                          {photoFile
+                            ? "✓ New photo selected"
+                            : photoUrl
+                            ? "✓ Image URL provided"
+                            : "✓ Current photo"}
                         </span>
                       </div>
                     )}

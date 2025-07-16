@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Search, Trash2, Edit, Eye, CheckCircle, AlertCircle, Users, Filter } from "lucide-react";
 import { googleSheetsService } from "../../services/googleSheets";
 import { googleDriveService } from "../../services/googleDrive";
-import type { Intern } from "../../types";
+import type { Intern, InternshipField } from "../../types"; // Ensure InternshipField is imported
 import InternDetails from "../../components/InternDetails";
 import { Link } from "react-router-dom";
 
@@ -39,14 +39,7 @@ const ViewAllInterns: React.FC = () => {
           : "https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=300",
       }));
 
-      // Sort interns by createdAt in descending order (newest first)
-      const sortedInterns = internsWithPhotos.sort((a, b) => {
-        const dateA = new Date(a.createdAt).getTime();
-        const dateB = new Date(b.createdAt).getTime();
-        return dateB - dateA;
-      });
-
-      setInterns(sortedInterns);
+      setInterns(internsWithPhotos); // Rely on Google Sheet order (newest at bottom)
     } catch (error: any) {
       console.error("Error loading interns:", error);
       alert(`Failed to load interns: ${error.message || "Unknown error"}`);
@@ -56,7 +49,8 @@ const ViewAllInterns: React.FC = () => {
   };
 
   const filterInterns = () => {
-    let filtered = interns;
+    // Start with all interns in reverse order (most recent first)
+    let filtered = interns.slice().reverse();
 
     // Search filter
     if (searchTerm) {
@@ -179,20 +173,18 @@ const ViewAllInterns: React.FC = () => {
             </div>
             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {interns.filter(
-                  (intern) =>
-                    intern.internshipFields.length > 0 &&
-                    intern.internshipFields.every((field) => field.completed)
+                {interns.filter((intern: Intern) =>
+                  intern.internshipFields.length > 0 &&
+                  intern.internshipFields.every((field: InternshipField) => field.completed)
                 ).length}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-300">Certified</div>
             </div>
             <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                {interns.filter(
-                  (intern) =>
-                    intern.internshipFields.length > 0 &&
-                    !intern.internshipFields.every((field) => field.completed)
+                {interns.filter((intern: Intern) =>
+                  intern.internshipFields.length > 0 &&
+                  !intern.internshipFields.every((field: InternshipField) => field.completed)
                 ).length}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-300">In Progress</div>
