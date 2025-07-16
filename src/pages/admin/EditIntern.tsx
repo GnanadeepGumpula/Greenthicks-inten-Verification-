@@ -181,7 +181,7 @@ const EditIntern: React.FC = () => {
 
     const googleDriveId = extractGoogleDriveId(url);
     if (googleDriveId) {
-      const [thumbnailUrl, fallbackUrl] = getGoogleDrivePreviewUrl(googleDriveId);
+      const [thumbnailUrl] = getGoogleDrivePreviewUrl(googleDriveId);
       setPhotoPreview(thumbnailUrl);
     } else if (url.startsWith("http")) {
       setPhotoPreview(url);
@@ -332,10 +332,10 @@ const EditIntern: React.FC = () => {
   };
 
   const handleIssueCertificate = async (fieldIndex: number) => {
+    const originalFields = [...internshipFields];
     try {
       setSaving(true);
       const field = internshipFields[fieldIndex];
-      const originalFields = [...internshipFields];
 
       setInternshipFields((prev) => {
         const updated = [...prev];
